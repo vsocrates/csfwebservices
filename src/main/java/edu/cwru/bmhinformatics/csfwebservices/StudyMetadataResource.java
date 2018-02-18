@@ -14,13 +14,15 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
-import org.json.JSONObject;
+import javax.json.JsonObject;
 
 @Path("studymetadata")
 public class StudyMetadataResource {
@@ -31,12 +33,13 @@ public class StudyMetadataResource {
 	 * 
 	 */
 	
-	@GET
-	@Produces(MediaType.TEXT_PLAIN)
-	public String processAllEDFFiles() {
-
+	@POST
+	@Consumes({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
+	public String processAllEDFFiles(String filename) {
+		System.out.println("filename" + filename);
+		
 		//{MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON}
-		File edfFileList = new File("C:\\Users\\Vimig\\Downloads\\CSF_Example\\CSF_Example");
+		File edfFileList = new File("/Users/vsocrates/Documents/School/BMHI/test_signals/CSF_Example");
 		//File edfFileList = new File(args[0]);
 //		System.out.println("file path arg:" + args[0] + "\n");		
 		
@@ -89,7 +92,8 @@ public class StudyMetadataResource {
 //					+ clinicalAnnotationFile.toString() + "\n");							
 			LinkedHashMap <String, String> studyMetadata = EDFStudyMetadataExtractor(edfFile);// - call the EDFStudyMetadataExtractor method
 			allFiles.add(studyMetadata);
-			JSONObject jsonifiedStudyMetadata = new JSONObject(studyMetadata);
+			JsonObject jsonifiedStudyMetadata = SDAuxiliary.hashMapJSONifier(studyMetadata);
+//			System.out.println("Data: " + jsonifiedStudyMetadata.toString());
 //			System.out.println("test: " + Integer.toString(counter));
 			File metadataFile = new File(csfDir, Integer.toString(counter) +".json");
 			try {
@@ -165,7 +169,7 @@ public class StudyMetadataResource {
 //					+ clinicalAnnotationFile.toString() + "\n");							
 			LinkedHashMap <String, String> studyMetadata = EDFStudyMetadataExtractor(edfFile2);// - call the EDFStudyMetadataExtractor method
 			allFiles.add(studyMetadata);
-			JSONObject jsonifiedStudyMetadata = new JSONObject(studyMetadata);
+			JsonObject jsonifiedStudyMetadata = SDAuxiliary.hashMapJSONifier(studyMetadata);
 //			System.out.printlnw("test: " + Integer.toString(counter));
 			File metadataFile = new File(csfDir, Integer.toString(counter) +".json");
 			try {
@@ -309,31 +313,5 @@ public class StudyMetadataResource {
 		return studyMetadata;								// RETURN the populated ArrayList
 	}
 	// ENDOF EDFMetadataExtractor Method Definition
-	
-	public static LinkedHashMap <String, String> EDFAnnotationExtractor(File annotationFile) {
-		
-		LinkedHashMap <String, String> clinicalEventMap = new LinkedHashMap <String, String>();
-		String buffStr = "";	
-		
-		try {															// BEGIN Try/Catch Block to Read Files
-			/**
-			 * PHASE II: EXTRACT THE CLINICAL EVENT ANNOTATIONS
-			 */
-			BufferedReader annotationFileReader 
-					= new BufferedReader(new FileReader(annotationFile)); 	// Open the clinical event annotation file and wrap a bufferedreader 
-		
-			while((buffStr = annotationFileReader.readLine()) != null) { 	// In a while loop, read in the <timestamp, clinical event> - each in separate line
-				String[] strArr = buffStr.split("\\s+", 2);						// Split the string to get two substrings (timestamp, clinical event) - controlled by number of times a regex is applied
-				if(strArr.length >= 2)
-					clinicalEventMap.put(strArr[0], strArr[1].trim());
-			}
-			annotationFileReader.close();									// Close the bufferedreader
-		} 
-		catch(IOException e) {
-			System.out.println("IOException: "); 
-			e.printStackTrace();
-		}	
-		return clinicalEventMap;
-	}
 	
 }

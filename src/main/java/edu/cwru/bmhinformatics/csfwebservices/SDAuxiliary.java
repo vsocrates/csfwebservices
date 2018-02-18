@@ -1,6 +1,15 @@
 package edu.cwru.bmhinformatics.csfwebservices;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import javax.json.Json;
+import javax.json.JsonArray;
+import javax.json.JsonArrayBuilder;
+import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
 
 public class SDAuxiliary {
 	
@@ -84,5 +93,44 @@ private static final int[] DAYS_IN_MONTH = {31, 28, 31, 30, 31, 30, 31, 31, 30, 
 		@Override 
 		public int compare(String[] A, String[] B) {return elapsedSeconds(B[0], A[0]);}
 	};
-
+	
+	//reads and writes JSON objects for access to intermediate files
+	public static final JsonObject hashMapJSONifier(Map<String,String> mapObject) {
+		JsonObjectBuilder returnObjectBuilder = Json.createObjectBuilder();
+		
+		for (Map.Entry<String, String> entry : mapObject.entrySet()) {
+			returnObjectBuilder.add(entry.getKey(), entry.getValue());
+		}
+		
+		JsonObject jsonObj = returnObjectBuilder.build();
+		return jsonObj;	
+	};
+	
+	//this one is for multiple hashmaps all together
+	public static final JsonArray hashMapListJSONifier(ArrayList<LinkedHashMap<String,String>> mapObject) {
+		JsonArrayBuilder returnArrayBuilder = Json.createArrayBuilder();
+		
+		for(Map<String,String> object : mapObject) {
+			JsonObjectBuilder subObject = Json.createObjectBuilder();
+			for (Map.Entry<String, String> entry : object.entrySet()) {
+				//"Transducer Type":"RF9             RF10            RA1             RA2             RA3" 
+				//shows up like this for some data, consolidated, 
+				//but i'm not sure if thats the right thing to do
+				//used trim and other RegEx stuff. 
+				System.out.println("key: " + entry.getKey() + "value: " + entry.getValue());
+				String[] valueWords = entry.getValue().split("\\s+");
+				for (int i = 0; i < valueWords.length; i++) {
+					valueWords[i] = valueWords[i].trim();
+				}
+				String trimmedWord = String.join(" ", valueWords);
+				System.out.println("trimmed word: " + trimmedWord);
+				subObject.add(entry.getKey(), trimmedWord);
+			}
+			returnArrayBuilder.add(subObject);
+		}
+		
+		
+		
+		return returnArrayBuilder.build();
+	};
 }
