@@ -7,6 +7,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -15,7 +16,9 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.regex.Pattern;
 
+import javax.json.Json;
 import javax.json.JsonObject;
+import javax.json.JsonReader;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -32,10 +35,13 @@ public class ClinicalEventAnnotationResource {
 	
 	@POST
 	@Consumes({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
-	public String getAllClinicalEvents() {
+	public String getAllClinicalEvents(String data) {
 		
-		File edfFileList = new File("/Users/vsocrates/Documents/School/BMHI/test_signals/CSF_Example");
-//		System.out.println("file path arg:" + args[0] + "\n");		
+		JsonReader jsonParamsReader = Json.createReader(new StringReader(data));
+		JsonObject inputParams = jsonParamsReader.readObject();
+
+		String edfFileListDir = inputParams.getString("edfFileDir");
+		File edfFileList = new File(edfFileListDir);
 		
 		HashMap <String[], File> edfMap = new HashMap<>();
 		for(File edfFile: edfFileList.listFiles()) {
@@ -90,10 +96,10 @@ public class ClinicalEventAnnotationResource {
 			
 			System.out.println("size: " + clinicalAnnotations.size());
 			
-			JsonObject jsonifiedClinicalAnnotations = SDAuxiliary.hashMapJSONifier(clinicalAnnotations);
+			JsonObject jsonifiedClinicalAnnotations = SDAuxiliary.hashMapToJSON(clinicalAnnotations);
 			System.out.println("clnical events: " + jsonifiedClinicalAnnotations.toString());
 //			System.out.println("test: " + Integer.toString(counter));
-			File metadataFile = new File(csfDir, Integer.toString(counter) +"_clinicalannotation.json");
+			File metadataFile = new File(csfDir, edfFile.getName().substring(0, edfFile.getName().length() - 4) +"_annotations.json");
 			try {
 				BufferedWriter fileWriter = new BufferedWriter(new FileWriter(metadataFile));
 				fileWriter.write(jsonifiedClinicalAnnotations.toString());

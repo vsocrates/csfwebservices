@@ -4,12 +4,14 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 import javax.json.Json;
 import javax.json.JsonArray;
 import javax.json.JsonArrayBuilder;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
+import javax.json.JsonValue;
 
 public class SDAuxiliary {
 	
@@ -84,6 +86,50 @@ private static final int[] DAYS_IN_MONTH = {31, 28, 31, 30, 31, 30, 31, 31, 30, 
 				+ "." + (startSec < 10 ? "0" : "") + startSec;
 	}
 	
+	public static String addSeconds(String T, double sec) {
+		String[] startDate = (T.split(",")[0]).split("\\.|:"), startTime = (T.split(",")[1]).split("\\.|:");
+		int startDay = Integer.parseInt(startDate[0], 10), 
+			startMonth = Integer.parseInt(startDate[1], 10), 
+			startYear = Integer.parseInt(startDate[2], 10),
+			startHour = Integer.parseInt(startTime[0], 10), 
+			startMin = Integer.parseInt(startTime[1], 10), 
+			startSec = Integer.parseInt(startTime[2], 10);
+		double startFrac = (startTime.length == 3) ? 0 : Double.parseDouble("0." + startTime[3]);
+		startFrac += sec;
+		startSec += ((int) Math.floor(startFrac));
+		startFrac -= Math.floor(startFrac);
+		if(startSec > 60) {
+			startMin += (startSec / 60);
+			startSec %= 60;
+		}
+		if(startMin > 60) {
+			startHour += (startMin / 60);
+			startMin %= 60;
+		}
+		if(startHour > 24) {
+			startDay += (startMin / 24);
+			startSec %= 24;
+		}
+		int m = DAYS_IN_MONTH[startMonth - 1] 
+				+ ((startMonth == 2 && (startYear % 4 == 0 && (startYear % 100 != 0 || startYear % 400 == 0))) ? 1 : 0);
+		while(startDay > m) {
+			startDay -= m;
+			if(++startMonth > 12) {
+				startMonth = 1;
+				startYear++;
+			}
+			m = DAYS_IN_MONTH[startMonth - 1] 
+					+ ((startMonth == 2 && (startYear % 4 == 0 && (startYear % 100 != 0 || startYear % 400 == 0))) ? 1 : 0);
+		}
+		return (startDay < 10 ? "0" : "") + startDay 
+				+ "." + (startMonth < 10 ? "0" : "") + startMonth 
+				+ "." + (startYear < 10 ? "0" : "") + startYear 
+				+ "," + (startHour < 10 ? "0" : "") + startHour 
+				+ "." + (startMin < 10 ? "0" : "") + startMin 
+				+ "." + (startSec < 10 ? "0" : "") + startSec
+				+ ((startFrac == 0) ? "" : Double.toString(startFrac).substring(1));
+	}
+	
 	public static final Comparator <String> CHRON = new Comparator <String> () {
 		@Override 
 		public int compare(String A, String B) {return elapsedSeconds(B, A);}
@@ -95,6 +141,7 @@ private static final int[] DAYS_IN_MONTH = {31, 28, 31, 30, 31, 30, 31, 31, 30, 
 	};
 	
 	//reads and writes JSON objects for access to intermediate files
+	//not used
 	public static final JsonObject hashMapJSONifier(Map<String,String> mapObject) {
 		JsonObjectBuilder returnObjectBuilder = Json.createObjectBuilder();
 		
@@ -107,6 +154,7 @@ private static final int[] DAYS_IN_MONTH = {31, 28, 31, 30, 31, 30, 31, 31, 30, 
 	};
 	
 	//this one is for multiple hashmaps all together
+	//not used
 	public static final JsonArray hashMapListJSONifier(ArrayList<LinkedHashMap<String,String>> mapObject) {
 		JsonArrayBuilder returnArrayBuilder = Json.createArrayBuilder();
 		
@@ -133,4 +181,67 @@ private static final int[] DAYS_IN_MONTH = {31, 28, 31, 30, 31, 30, 31, 31, 30, 
 		
 		return returnArrayBuilder.build();
 	};
+
+	//reads and writes JSON objects for access to intermediate files
+	public static final JsonObject hashMapToJSON(Map<String,String> mapObject) {
+		JsonObjectBuilder returnObjectBuilder = Json.createObjectBuilder();
+		
+		for (Map.Entry<String, String> entry : mapObject.entrySet()) {
+			returnObjectBuilder.add(entry.getKey(), entry.getValue());
+		}
+		
+		JsonObject jsonObj = returnObjectBuilder.build();
+		return jsonObj;	
+	};
+	
+	//this one is for multiple hashmaps all together
+	public static final JsonArray hashMapListToJSON(ArrayList<LinkedHashMap<String,String>> mapObject) {
+		JsonArrayBuilder returnArrayBuilder = Json.createArrayBuilder();
+		
+		for(Map<String,String> object : mapObject) {
+			JsonObjectBuilder subObject = Json.createObjectBuilder();
+			for (Map.Entry<String, String> entry : object.entrySet()) {
+				//"Transducer Type":"RF9             RF10            RA1             RA2             RA3" 
+				//shows up like this for some data, consolidated, 
+				//but i'm not sure if thats the right thing to do
+				//used trim and other RegEx stuff. 
+				String[] valueWords = entry.getValue().split("\\s+");
+				for (int i = 0; i < valueWords.length; i++) {
+					valueWords[i] = valueWords[i].trim();
+				}
+				String trimmedWord = String.join(" ", valueWords);
+				subObject.add(entry.getKey(), trimmedWord);
+			}
+			returnArrayBuilder.add(subObject);
+		}
+		return returnArrayBuilder.build();
+	};
+	
+	public static final LinkedHashMap <String, String> jsonToHashmap(JsonObject jsonObject) {
+		
+		LinkedHashMap<String, String> returnMap = new LinkedHashMap<String, String>();
+		Set<String> keys = jsonObject.keySet();
+		for(String key : keys) {
+			JsonValue tempValue = jsonObject.get(key);
+			//TODO fix: something weird here, for some reason tempValue.toString() also includes quotes from JSON (e.g. "0.1")
+			returnMap.put(key, tempValue.toString().substring(1, tempValue.toString().length()-1));
+		}
+		
+		return returnMap;
+	}
+	
+	public static final ArrayList<LinkedHashMap<String, String>> jsonToHashmapList(JsonArray jsonArray) {
+		
+		ArrayList<LinkedHashMap<String, String>> returnList = new ArrayList<LinkedHashMap<String, String>>();
+		
+		for(JsonValue jsonObj : jsonArray) {
+			System.out.println("Testing list: " + jsonObj.toString());
+			LinkedHashMap <String, String> tempHashMap = jsonToHashmap((JsonObject) jsonObj);
+			returnList.add(tempHashMap);
+		}
+		
+		return returnList;
+		
+	}
+
 }

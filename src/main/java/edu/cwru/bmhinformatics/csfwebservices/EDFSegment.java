@@ -6,7 +6,8 @@ import java.util.LinkedHashMap;
 
 public class EDFSegment {
 		
-		private ArrayList <LinkedHashMap <String, String>> edfSignalMetadata;
+		private LinkedHashMap <String, String> edfSignalMetadata;
+		private LinkedHashMap <String, String> edfAnnotations;
 		private ArrayList <LinkedHashMap <String, String>> edfChannelMetadata;
 		private ArrayList <byte []> edfDataFragment;
 		private ArrayList <ArrayList <byte []>> edfSignalSpecificDataFragment;
@@ -22,10 +23,11 @@ public class EDFSegment {
 		 * @return the EDFFragment object
 		 * 
 		 */
-		EDFSegment(ArrayList <LinkedHashMap <String, String>> signalMetadata, ArrayList <LinkedHashMap <String, String>> channelMetadata, 
-				   ArrayList <byte[]> signalData, int firstFragment, int lastFragment, double epochDuration) {
+		EDFSegment(LinkedHashMap <String, String> signalMetadata, ArrayList <LinkedHashMap <String, String>> channelMetadata, 
+				LinkedHashMap <String, String> annotations, ArrayList <byte[]> signalData, int firstFragment, int lastFragment, double epochDuration) {
 			this.edfSignalMetadata = signalMetadata;                               			// Set the EDF signal metadata from input
 			this.edfChannelMetadata = channelMetadata;                              		// Set the channel metadata from input
+			this.edfAnnotations = annotations;
 			
 			this.firstFragmentSequence = firstFragment; 									// Set the sequence number of the first fragment in the EDFSegment object from input
 			this.lastFragmentSequence = lastFragment;  										// Set the sequence number of the last fragment in the EDFSegment object from input
@@ -38,8 +40,8 @@ public class EDFSegment {
 		// ENDOF EDFSegment Constructor
 				
 		// Getter methods
-		public LinkedHashMap <String, String> getStudyMetadata() {return edfSignalMetadata.get(0);} 		// Getter method for study metadata variable
-		public LinkedHashMap <String, String> getAnnotationList() {return edfSignalMetadata.get(1);}		// Getter method for clinical event annotations
+		public LinkedHashMap <String, String> getStudyMetadata() {return edfSignalMetadata;} 		// Getter method for study metadata variable
+		public LinkedHashMap <String, String> getAnnotationList() {return edfAnnotations;}		// Getter method for clinical event annotations
 		public ArrayList <LinkedHashMap <String, String>> getChannelMetadata() {return edfChannelMetadata;} // Getter method for channel-specific variable
 		public ArrayList <byte[]> getSignalData() {return edfDataFragment;} 								// Getter method for binary raw signal data with EDF data records
 		public ArrayList <ArrayList <byte[]>> getChannelSpecificData() 

@@ -1,19 +1,21 @@
 package edu.cwru.bmhinformatics.csfwebservices;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.io.StringReader;
+import java.net.URI;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonReader;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -21,8 +23,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
-
-import javax.json.JsonObject;
+import javax.ws.rs.core.Response;
 
 @Path("studymetadata")
 public class StudyMetadataResource {
@@ -35,15 +36,19 @@ public class StudyMetadataResource {
 	
 	@POST
 	@Consumes({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
-	public String processAllEDFFiles(String filename) {
-		System.out.println("filename" + filename);
+	@Produces({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
+	public Response processAllEDFFiles(String data) {
 		
-		//{MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON}
-		File edfFileList = new File("/Users/vsocrates/Documents/School/BMHI/test_signals/CSF_Example");
-		//File edfFileList = new File(args[0]);
-//		System.out.println("file path arg:" + args[0] + "\n");		
+		JsonReader jsonParamsReader = Json.createReader(new StringReader(data));
+		JsonObject inputParams = jsonParamsReader.readObject();
+
+		String edfFileListDir = inputParams.getString("edfFileDir");
+		File edfFileList = new File(edfFileListDir);
 		
 		HashMap <String[], File> edfMap = new HashMap<>();
+		File csfDir = new File(edfFileList.getPath() + "/" + edfFileList.getName() + "-CSF");
+		if(csfDir.mkdir() || csfDir.exists()) System.out.println("Directory " + csfDir.getName() + " created");
+
 		for(File edfFile: edfFileList.listFiles()) {
 			if (edfFile.getPath().indexOf(".edf") == -1) continue;								// Skip the .txt file and process only .edf files
 			String edfStart = "";
@@ -74,42 +79,29 @@ public class StudyMetadataResource {
 			edfStart = "";
 		}
 		
-		File csfDir = new File(edfFileList.getPath() + "/" + edfFileList.getName() + "-CSF");
-		if(csfDir.mkdir() || csfDir.exists()) System.out.println("Directory " + csfDir.getName() + " created");
+		URI createdResource = null;
 		ArrayList <String[]> edfTimes = new ArrayList<>(edfMap.keySet());
 		Collections.sort(edfTimes, SDAuxiliary.CHRON_PAIR);
-//		for(String[] A: edfTimes) System.out.println(Arrays.toString(A) + " " + edfMap.get(A));
 		int fileCounter = 0, fragmentIndex = 0, totalFragments = 0;
 		LinkedHashSet <String> termSet = new LinkedHashSet<>();
 		ArrayList<LinkedHashMap<String,String>> allFiles = new ArrayList<LinkedHashMap<String, String>>();
-		int counter = 0;
 		for(String[] T: edfTimes) {
 			File edfFile = edfMap.get(T);
-//			System.out.println("EDF file: " + edfFile.toString() + "\n");
-//			File clinicalAnnotationFile 														// Grab the associated annotation .txt file
-//					= new File(edfFile.getPath().replace(".edf", ".txt"));
-//			System.out.println("Annotation file: " 
-//					+ clinicalAnnotationFile.toString() + "\n");							
 			LinkedHashMap <String, String> studyMetadata = EDFStudyMetadataExtractor(edfFile);// - call the EDFStudyMetadataExtractor method
 			allFiles.add(studyMetadata);
-			JsonObject jsonifiedStudyMetadata = SDAuxiliary.hashMapJSONifier(studyMetadata);
-//			System.out.println("Data: " + jsonifiedStudyMetadata.toString());
-//			System.out.println("test: " + Integer.toString(counter));
-			File metadataFile = new File(csfDir, Integer.toString(counter) +".json");
+			JsonObject jsonifiedStudyMetadata = SDAuxiliary.hashMapToJSON(studyMetadata);
+			File metadataFile = new File(csfDir, edfFile.getName().substring(0, edfFile.getName().length() - 4) +"_studymetadata.json");
+			createdResource = metadataFile.toURI();
 			try {
 				BufferedWriter fileWriter = new BufferedWriter(new FileWriter(metadataFile));
 				fileWriter.write(jsonifiedStudyMetadata.toString());
 				fileWriter.close();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			counter++;
 		}
-		
-//		System.out.println("signal metadata" + allFiles + " " + Integer.toString(allFiles.size()));
-		
-		return "DONE!";
+				
+		return Response.created(createdResource).build();
 	}
 
 	@GET
@@ -169,7 +161,7 @@ public class StudyMetadataResource {
 //					+ clinicalAnnotationFile.toString() + "\n");							
 			LinkedHashMap <String, String> studyMetadata = EDFStudyMetadataExtractor(edfFile2);// - call the EDFStudyMetadataExtractor method
 			allFiles.add(studyMetadata);
-			JsonObject jsonifiedStudyMetadata = SDAuxiliary.hashMapJSONifier(studyMetadata);
+			JsonObject jsonifiedStudyMetadata = SDAuxiliary.hashMapToJSON(studyMetadata);
 //			System.out.printlnw("test: " + Integer.toString(counter));
 			File metadataFile = new File(csfDir, Integer.toString(counter) +".json");
 			try {
@@ -312,6 +304,5 @@ public class StudyMetadataResource {
 		}													// ENDOF Try/Catch Block to read files
 		return studyMetadata;								// RETURN the populated ArrayList
 	}
-	// ENDOF EDFMetadataExtractor Method Definition
 	
 }

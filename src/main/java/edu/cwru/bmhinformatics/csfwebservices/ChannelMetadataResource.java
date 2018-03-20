@@ -5,13 +5,17 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 
+import javax.json.Json;
 import javax.json.JsonArray;
+import javax.json.JsonObject;
+import javax.json.JsonReader;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -30,13 +34,16 @@ public class ChannelMetadataResource {
 	
 	@POST
 	@Consumes({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML})
-	@Path("metadata/{numChannels}")
-	public String getChannelMetadata(@PathParam("numChannels") int numChannels) {
+	@Path("metadata")
+	public String getChannelMetadata(String data) {
 		
-		//{MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON}
-		File edfFileList = new File("/Users/vsocrates/Documents/School/BMHI/test_signals/CSF_Example");
-		//File edfFileList = new File(args[0]);
-//		System.out.println("file path arg:" + args[0] + "\n");		
+		JsonReader jsonParamsReader = Json.createReader(new StringReader(data));
+		JsonObject inputParams = jsonParamsReader.readObject();
+
+		String edfFileListDir = inputParams.getString("edfFileDir");
+		File edfFileList = new File(edfFileListDir);
+		
+		int numChannels = inputParams.getInt("numChannels");
 		
 		HashMap <String[], File> edfMap = new HashMap<>();
 		for(File edfFile: edfFileList.listFiles()) {
@@ -73,35 +80,25 @@ public class ChannelMetadataResource {
 		if(csfDir.mkdir() || csfDir.exists()) System.out.println("Directory " + csfDir.getName() + " created");
 		ArrayList <String[]> edfTimes = new ArrayList<>(edfMap.keySet());
 		Collections.sort(edfTimes, SDAuxiliary.CHRON_PAIR);
-//		for(String[] A: edfTimes) System.out.println(Arrays.toString(A) + " " + edfMap.get(A));
 		int fileCounter = 0, fragmentIndex = 0, totalFragments = 0;
 		LinkedHashSet <String> termSet = new LinkedHashSet<>();
 		ArrayList<ArrayList<LinkedHashMap <String, String>>> allFiles = new ArrayList<ArrayList<LinkedHashMap <String, String>>>();
 		int counter = 0;
 		for(String[] T: edfTimes) {
 			File edfFile = edfMap.get(T);
-//			System.out.println("EDF file: " + edfFile.toString() + "\n");
-//			File clinicalAnnotationFile 														// Grab the associated annotation .txt file
-//					= new File(edfFile.getPath().replace(".edf", ".txt"));
-//			System.out.println("Annotation file: " 
-//					+ clinicalAnnotationFile.toString() + "\n");							
 			ArrayList<LinkedHashMap <String, String>> channelMetadata = EDFChannelMetadataExtractor(edfFile, numChannels);// - call the EDFStudyMetadataExtractor method
 			allFiles.add(channelMetadata);
-			JsonArray jsonifiedChannelMetadata = SDAuxiliary.hashMapListJSONifier(channelMetadata);
-//			System.out.println("test: " + Integer.toString(counter));
-			File metadataFile = new File(csfDir, Integer.toString(counter) +"_channelmetadata.json");
+			JsonArray jsonifiedChannelMetadata = SDAuxiliary.hashMapListToJSON(channelMetadata);
+			File metadataFile = new File(csfDir, edfFile.getName().substring(0, edfFile.getName().length() - 4) +"_channelmetadata.json");
 			try {
 				BufferedWriter fileWriter = new BufferedWriter(new FileWriter(metadataFile));
 				fileWriter.write(jsonifiedChannelMetadata.toString());
 				fileWriter.close();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			counter++;
 		}
-		
-//		System.out.println("signal metadata" + allFiles + " " + Integer.toString(allFiles.size()));
 		
 		return "Got Channel Metadata";
 		
@@ -208,6 +205,7 @@ public class ChannelMetadataResource {
 						new String(valueBuffer).trim());
 				
 				channelMetadata.add(channelId, channelSpecificMetadata);// Add the channel-specific metadata to the arraylist for all channel metadata - a hastable of values
+				System.out.println("data recordabc: " + channelSpecificMetadata.get("Samples per Data Record"));
 			}														// ENDOF FOR loop over each channel
 			edfFileReader.close();									// Close the file reader
 		} catch(IOException e){
@@ -216,6 +214,5 @@ public class ChannelMetadataResource {
 		}														// ENDOF Try/Catch Block for Reading File
 		return channelMetadata;									// RETURN the populated list of hashtables
 	}
-	// ENDOF EDFChannelMetadataExtractor Method Definition
 	
 }
